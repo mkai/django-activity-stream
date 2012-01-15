@@ -1,13 +1,14 @@
 from django.conf import settings
 from django.db.models import Manager
 from django.db.models.query import QuerySet, EmptyQuerySet
-from django.utils.encoding import smart_unicode
-
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.generic import GenericForeignKey
+from django.utils.encoding import smart_unicode
 
-USE_PREFETCH = getattr(settings, 'USE_PREFETCH', False)
-FETCH_RELATIONS = getattr(settings, 'FETCH_RELATIONS', True)
+PREFETCH_RELATIONS = getattr(settings, 'ACTSTREAM_PREFETCH_RELATIONS', False)
+USE_PREFETCH_RELATED = getattr(settings, 'ACTSTREAM_USE_PREFETCH_RELATED', 
+    True)
+
 
 class GFKManager(Manager):
     """
@@ -20,6 +21,7 @@ class GFKManager(Manager):
     def none(self):
         return self.get_query_set().none()
 
+
 class GFKQuerySet(QuerySet):
     """
     A QuerySet with a fetch_generic_relations() method to bulk fetch
@@ -29,27 +31,29 @@ class GFKQuerySet(QuerySet):
     Based on http://www.djangosnippets.org/snippets/984/
     Firstly improved at http://www.djangosnippets.org/snippets/1079/
 
-    Extended in django-activity-stream to allow for multi db, text primary keys and empty querysets
+    Extended in django-activity-stream to allow for multi db, text primary 
+    keys and empty querysets.
 
     """
     def fetch_generic_relations(self):
         qs = self._clone()
 
-        if not FETCH_RELATIONS:
+        if not PREFETCH_RELATIONS:
             return qs
 
-        if USE_PREFETCH and hasattr(self, 'prefetch_related'):
+        if USE_PREFETCH_RELATED and hasattr(self, 'prefetch_related'):
             return qs.prefetch_related('actor', 'target', 'action_object')
 
-        gfk_fields = [g for g in self.model._meta.virtual_fields if isinstance(g, GenericForeignKey)]
+        gfk_fields = [g for g in self.model._meta.virtual_fields 
+                      if isinstance(g, GenericForeignKey)]
         ct_map, data_map = {}, {}
 
         for item in qs:
             for gfk in gfk_fields:
                 ct_id_field = self.model._meta.get_field(gfk.ct_field).column
-                ct_map.setdefault(
-                    getattr(item, ct_id_field), {}
-                    )[smart_unicode(getattr(item, gfk.fk_field))] = (gfk.name, item.pk)
+                fk_field = smart_unicode(getattr(item, gfk.fk_field))
+                ct_map.setdefault(getattr(item, ct_id_field), {})
+                ct_map[fk_field] = (gfk.name, item.pk)
 
         ctypes = ContentType.objects.using(self.db).in_bulk(ct_map.keys())
 
@@ -57,21 +61,24 @@ class GFKQuerySet(QuerySet):
             if ct_id:
                 ct = ctypes[ct_id]
                 model_class = ct.model_class()
-                for o in model_class.objects.select_related().filter(pk__in=items_.keys()):
-                    (gfk_name, item_id) = items_[smart_unicode(o.pk)]
+                for o in model_class.objects.select_related().filter(
+                    pk__in=items_.keys()):
+                    gfk_name, item_id = items_[smart_unicode(o.pk)]
                     data_map[(ct_id, smart_unicode(o.pk))] = o
 
         for item in qs:
             for gfk in gfk_fields:
-                if getattr(item, gfk.fk_field) != None:
-                    ct_id_field = self.model._meta.get_field(gfk.ct_field).column
-                    setattr(item, gfk.name, data_map[(getattr(item, ct_id_field),
-                                                      getattr(item, gfk.fk_field))])
-
+                fk_field = getattr(item, gfk.fk_field)
+                if not fk_field:
+                    return    
+                ct_id_field = self.model._meta.get_field(gfk.ct_field).column
+                data = data_map[(getattr(item, ct_id_field), fk_field)]
+                setattr(item, gfk.name, data)
         return qs
 
     def none(self):
         return self._clone(klass=EmptyGFKQuerySet)
+
 
 class EmptyGFKQuerySet(GFKQuerySet, EmptyQuerySet):
     def fetch_generic_relations(self):

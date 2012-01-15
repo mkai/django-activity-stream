@@ -3,15 +3,6 @@ Configuration
 
 Update these settings in your project's ``settings.py``.  Supported settings are defined below.
 
-Action Models
-*************
-
-``ACTSTREAM_ACTION_MODELS = ['auth.User']``
-
-A list the models that you want to enable actions for. Models must be in the format ``app_label.model_name`` .
-In the background, django-activity-stream sets up ``GenericRelations`` to handle stream generation.
-
-
 Action Template
 ***************
 

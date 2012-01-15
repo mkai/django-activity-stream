@@ -24,9 +24,3 @@ Decorators
 
 .. automodule:: actstream.decorators
     :members: stream
-
-Exceptions
------------
-
-.. automodule:: actstream.exceptions
-    :members: ModelNotActionable, BadQuerySet, check_actionable_model

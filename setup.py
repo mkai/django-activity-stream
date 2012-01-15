@@ -3,7 +3,7 @@ from actstream import __version__
 
 setup(name='django-activity-stream',
       version=__version__,
-      description='Generate generic activity streams from the actions on your site. Users can follow any actor\'s activities for personalized streams.',
+      description='Generate generic activity streams from the actions on your site.',
       long_description=open('README.rst').read(),
       author='Justin Quick',
       author_email='justquick@gmail.com',
