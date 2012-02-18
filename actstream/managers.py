@@ -1,12 +1,35 @@
+from functools import wraps
+from django.db import models
 from django.db.models import Q
 from django.contrib.contenttypes.models import ContentType
-from actstream.gfk import GFKManager
-from actstream.decorators import stream
 
 
-class ActionManager(GFKManager):
+def stream(func):
     """
-    Default manager for Actions, accessed through Action.objects
+    Stream decorator to be applied to methods of an ``ActionManager`` subclass
+
+    Syntax::
+
+        from actstream.decorators import stream
+        from actstream.managers import ActionManager
+
+        class MyManager(ActionManager):
+            @stream
+            def foobar(self, ...):
+                ...
+
+    """
+    @wraps(func)
+    def wrapped(manager, *args, **kwargs):
+        offset, limit = kwargs.pop('_offset', None), kwargs.pop('_limit', None)
+        qs = func(manager, *args, **kwargs)[offset:limit]
+        return qs
+    return wrapped
+
+
+class ActionManager(models.Manager):
+    """
+    Default manager for Actions.
     
     """
     def public(self, *args, **kwargs):

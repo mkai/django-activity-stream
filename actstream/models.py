@@ -1,11 +1,8 @@
 from datetime import datetime
 from django.db import models
-from django.conf import settings
-from django.core.urlresolvers import reverse
-from django.template.loader import render_to_string
-from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
-from actstream.settings import TEMPLATE, MANAGER_MODULE
+from django.contrib.contenttypes.generic import GenericForeignKey
+from actstream.settings import MANAGER_MODULE
 from actstream.signals import action
 
 
@@ -41,7 +38,7 @@ class Action(models.Model):
     """
     actor_content_type = models.ForeignKey(ContentType, related_name='actor')
     actor_object_id = models.CharField(max_length=255)
-    actor = generic.GenericForeignKey('actor_content_type', 'actor_object_id')
+    actor = GenericForeignKey('actor_content_type', 'actor_object_id')
 
     verb = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -49,14 +46,14 @@ class Action(models.Model):
     target_content_type = models.ForeignKey(ContentType, related_name='target',
         blank=True, null=True)
     target_object_id = models.CharField(max_length=255, blank=True, null=True)
-    target = generic.GenericForeignKey('target_content_type', 
+    target = GenericForeignKey('target_content_type', 
         'target_object_id')
 
     action_object_content_type = models.ForeignKey(ContentType, 
         related_name='action_object', blank=True, null=True)
     action_object_object_id = models.CharField(max_length=255, blank=True, 
         null=True)
-    action_object = generic.GenericForeignKey('action_object_content_type', 
+    action_object = GenericForeignKey('action_object_content_type', 
         'action_object_object_id')
 
     timestamp = models.DateTimeField(default=datetime.now)
@@ -69,8 +66,6 @@ class Action(models.Model):
         ordering = ('-timestamp',)
 
     def __unicode__(self):
-        if settings.USE_I18N:
-            return render_to_string(TEMPLATE, {'action': self}).strip()
         if self.target:
             if self.action_object:
                 return u'%s %s %s on %s %s ago' % (self.actor, self.verb, self.action_object, self.target, self.timesince())
@@ -80,47 +75,8 @@ class Action(models.Model):
             return u'%s %s %s %s %s ago' % (self.actor, self.verb, self.action_object, self.timesince())
         return u'%s %s %s ago' % (self.actor, self.verb, self.timesince())
 
-    def actor_url(self):
-        """
-        Returns the URL to the ``actstream_actor`` view for the current actor
-        """
-        return reverse('actstream_actor', None,
-                       (self.actor_content_type.pk, self.actor_object_id))
 
-    def target_url(self):
-        """
-        Returns the URL to the ``actstream_actor`` view for the current target
-        """
-        return reverse('actstream_actor', None,
-                       (self.target_content_type.pk, self.target_object_id))
-
-    def action_object_url(self):
-        """
-        Returns the URL to the ``actstream_actor`` view for the current action object
-        """
-        return reverse('actstream_actor', None,
-            (self.action_object_content_type.pk, self.action_object_object_id))
-
-    def timesince(self, now=None):
-        """
-        Shortcut for the ``django.utils.timesince.timesince`` function of the current timestamp
-        """
-        from django.utils.timesince import timesince as timesince_
-        return timesince_(self.timestamp, now)
-
-    @models.permalink
-    def get_absolute_url(self):
-        return ('actstream.views.detail', [self.pk])
-
-
-# convenience accessors
-actor_stream = Action.objects.actor
-action_object_stream = Action.objects.action_object
-target_stream = Action.objects.target
-model_stream = Action.objects.model_actions
-
-
-def action_handler(verb, **kwargs):
+def on_action_sent(verb, **kwargs):
     """
     Handler function to create Action instance upon action signal call.
     
@@ -144,5 +100,4 @@ def action_handler(verb, **kwargs):
 
     newaction.save()
 
-
-action.connect(action_handler, sender=None, dispatch_uid='actstream.models')
+action.connect(on_action_sent, sender=None, dispatch_uid='actstream.models')

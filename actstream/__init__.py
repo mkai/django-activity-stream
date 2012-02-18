@@ -1,24 +1,23 @@
-try:
-    from actstream.signals import action
-except ImportError:
-    pass
+from actstream.signals import action
 
+# source: https://gist.github.com/1149730
 __version_info__ = {
     'major': 0,
     'minor': 4,
-    'micro': 1,
-    'releaselevel': 'beta',
-    'serial': 2
+    'micro': 2,
+    'releaselevel': 'alpha',
+    'serial': 1,
 }
 
 
-def get_version(release_level=True):
-    """
-    Return the formatted version information
-    """
-    vers = ["%(major)i.%(minor)i.%(micro)i" % __version_info__]
-    if release_level and __version_info__['releaselevel'] != 'final':
-        vers.append('%(releaselevel)s%(serial)i' % __version_info__)
+def get_version(short=False):
+    assert __version_info__['releaselevel'] in ('alpha', 'beta', 'final')
+    vers = ["%(major)i.%(minor)i" % __version_info__, ]
+    if __version_info__['micro']:
+        vers.append(".%(micro)i" % __version_info__)
+    if __version_info__['releaselevel'] != 'final' and not short:
+        vers.append('%s%i' % (__version_info__['releaselevel'][0], 
+            __version_info__['serial']))
     return ''.join(vers)
 
 __version__ = get_version()
