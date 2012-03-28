@@ -1,6 +1,6 @@
-from datetime import datetime
 from django.db import models
 from django.db.models import Q
+from django.utils.timezone import now
 from django.utils.timesince import timesince as timesince_
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.generic import GenericForeignKey
@@ -95,7 +95,7 @@ class Action(models.Model):
 
     """
     verb = models.CharField(max_length=255)
-    timestamp = models.DateTimeField(default=datetime.now)
+    timestamp = models.DateTimeField(default=now)
     public = models.BooleanField(default=True)
     extra_data = JSONField(blank=True, null=True)
 
@@ -151,7 +151,7 @@ def on_action_sent(verb, **kwargs):
                     actor_object_id=actor.pk,
                     verb=unicode(verb),
                     public=bool(kwargs.pop('public', True)),
-                    timestamp=kwargs.pop('timestamp', datetime.now()),
+                    timestamp=kwargs.pop('timestamp', now()),
                     extra_data=kwargs.pop('extra_data', ''))
 
     for opt in ('target', 'action_object'):
